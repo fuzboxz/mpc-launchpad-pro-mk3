@@ -1066,6 +1066,14 @@ local function blinkPhase(fast)
 	return ticks % 10 < 5
 end
 
+-- muted track is dimmed
+local MUTED_DIM = 0.1 -- brightness factor for muted tracks (1.0 = unchanged)
+local function trackMuted(col)
+	local gc = H.globalPos(col, 0)
+	local t = mpc.tracks and mpc.tracks.normalTracks and mpc.tracks.normalTracks[gc]
+	return H.propValue(t, "Mute") == true
+end
+
 -- One clip slot from its live property State (MPK semantics, device-verified):
 -- < 2 empty, 2 = stopped (the clip's Colour, alpha ignored), 3-5 = playing or
 -- queued (green), >= 6 = recording (red). Selected empty slots light dim white
@@ -1096,6 +1104,9 @@ local function paintClipSlot(col, row)
 	end
 	if state >= 3 and not blinkPhase(CLIP_BLINK_FAST[state]) then
 		r, g, b = H.scale7(r * 0.18), H.scale7(g * 0.18), H.scale7(b * 0.18)
+	end
+	if trackMuted(col) then
+		r, g, b = math.min(r, 127) * MUTED_DIM, math.min(g, 127) * MUTED_DIM, math.min(b, 127) * MUTED_DIM
 	end
 	ledRGB(idx, r, g, b)
 	return true
@@ -1210,6 +1221,9 @@ local function paintGrid()
 					elseif status == 2 then
 						k = 0.95
 					end
+					if trackMuted(col) then
+						k = k * MUTED_DIM
+					end
 					ledRGB(idx, H.scale7(r * k), H.scale7(g * k), H.scale7(b * k))
 				end
 			end
@@ -1305,7 +1319,8 @@ local function paintTrack()
 				local c = H.propValue(t, "Colour")
 				if type(c) == "number" then
 					local cr, cg, cb = H.argb(c)
-					r, g, b = H.scale7(cr * 0.3), H.scale7(cg * 0.3), H.scale7(cb * 0.3)
+					local k = H.propValue(t, "Mute") == true and 0.3 * MUTED_DIM or 0.3
+					r, g, b = H.scale7(cr * k), H.scale7(cg * k), H.scale7(cb * k)
 				end
 			end
 		end
